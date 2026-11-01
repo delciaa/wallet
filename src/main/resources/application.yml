@@ -1,0 +1,11 @@
+spring:
+  application:
+    name: wallet
+  datasource:
+    url: jdbc:postgresql://localhost:5434/wallet
+    username: wallet
+    password: ${DB_PASSWORD:localdev}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
