@@ -1,4 +1,4 @@
-package com.yourname.wallet;
+package io.github.delciaa.wallet;
 
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
