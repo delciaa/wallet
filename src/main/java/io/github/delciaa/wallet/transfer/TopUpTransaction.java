@@ -16,20 +16,23 @@ import org.springframework.transaction.annotation.Transactional;
 @Component
 class TopUpTransaction {
 
+	private final IdempotencyCheck idempotency;
+
 	private final TransferRepository transfers;
 
 	private final WalletRepository wallets;
 
-	TopUpTransaction(TransferRepository transfers, WalletRepository wallets) {
+	TopUpTransaction(IdempotencyCheck idempotency, TransferRepository transfers, WalletRepository wallets) {
+		this.idempotency = idempotency;
 		this.transfers = transfers;
 		this.wallets = wallets;
 	}
 
 	@Transactional
 	public TransferResult execute(IdempotentRequest request, TopUpRequest topUp) {
-		Optional<Transfer> earlier = transfers.findByInitiatedByAndIdempotencyKey(request.userId(), request.key());
-		if (earlier.isPresent()) {
-			return replay(earlier.get(), request);
+		Optional<TransferResult> replay = idempotency.replayOf(request);
+		if (replay.isPresent()) {
+			return replay.get();
 		}
 
 		Wallet wallet = wallets.findByUserId(request.userId()).orElseThrow(WalletNotFoundException::new);
@@ -39,13 +42,6 @@ class TopUpTransaction {
 		// Write now, so a lost race shows up here as an exception rather than at commit
 		transfers.flush();
 		return TransferResult.created(transfer);
-	}
-
-	private static TransferResult replay(Transfer earlier, IdempotentRequest request) {
-		if (!earlier.isSameRequestAs(request)) {
-			throw new IdempotencyKeyReusedException();
-		}
-		return TransferResult.replayed(earlier);
 	}
 
 }

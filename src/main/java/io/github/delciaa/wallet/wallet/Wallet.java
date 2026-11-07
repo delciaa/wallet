@@ -78,10 +78,27 @@ public class Wallet {
 	/** Adds money. The @Version check at commit makes a concurrent change fail instead of being lost. */
 	public void credit(BigDecimal amount) {
 		requireActive();
-		if (amount.signum() <= 0) {
-			throw new IllegalArgumentException("Credit amount must be positive");
-		}
+		requirePositive(amount);
 		balance = balance.add(amount);
+	}
+
+	/**
+	 * Takes money out, never below zero. If two debits race, the loser is retried and then
+	 * sees the lower balance, so it can't overspend either.
+	 */
+	public void debit(BigDecimal amount) {
+		requireActive();
+		requirePositive(amount);
+		if (balance.compareTo(amount) < 0) {
+			throw new InsufficientFundsException();
+		}
+		balance = balance.subtract(amount);
+	}
+
+	private static void requirePositive(BigDecimal amount) {
+		if (amount.signum() <= 0) {
+			throw new IllegalArgumentException("Amount must be positive");
+		}
 	}
 
 	private void requireActive() {

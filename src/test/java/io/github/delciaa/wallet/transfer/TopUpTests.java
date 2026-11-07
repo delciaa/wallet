@@ -12,10 +12,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.Callable;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
 
 import com.jayway.jsonpath.JsonPath;
 import io.github.delciaa.wallet.TestcontainersConfiguration;
@@ -23,6 +19,7 @@ import io.github.delciaa.wallet.auth.AuthService;
 import io.github.delciaa.wallet.auth.LoginRequest;
 import io.github.delciaa.wallet.auth.RegisterRequest;
 import io.github.delciaa.wallet.common.ConcurrentUpdateException;
+import io.github.delciaa.wallet.support.Concurrently;
 import io.github.delciaa.wallet.wallet.Wallet;
 import io.github.delciaa.wallet.wallet.WalletRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -78,7 +75,7 @@ class TopUpTests {
 	@Test
 	void topUpAddsMoneyAndWritesBalancedLedgerLines() throws Exception {
 		topUp("key-1", "100.00").andExpect(status().isCreated())
-			.andExpect(header().string(TopUpController.REPLAYED, "false"))
+			.andExpect(header().string(IdempotencyHeaders.REPLAYED, "false"))
 			.andExpect(jsonPath("$.type").value("TOP_UP"))
 			.andExpect(jsonPath("$.amount").value(100.00))
 			.andExpect(jsonPath("$.currency").value("EUR"));
@@ -96,7 +93,7 @@ class TopUpTests {
 			.getContentAsString();
 
 		String second = topUp("same-key", "25.00").andExpect(status().isOk())
-			.andExpect(header().string(TopUpController.REPLAYED, "true"))
+			.andExpect(header().string(IdempotencyHeaders.REPLAYED, "true"))
 			.andReturn()
 			.getResponse()
 			.getContentAsString();
@@ -151,7 +148,7 @@ class TopUpTests {
 	@Test
 	void topUpWithoutTokenIsUnauthorized() throws Exception {
 		mockMvc
-			.perform(post("/api/wallets/me/top-ups").header(TopUpController.IDEMPOTENCY_KEY, "key-1")
+			.perform(post("/api/wallets/me/top-ups").header(IdempotencyHeaders.KEY, "key-1")
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("{\"amount\": 10.00}"))
 			.andExpect(status().isUnauthorized());
@@ -175,7 +172,7 @@ class TopUpTests {
 			});
 		}
 
-		long succeeded = runAtTheSameTime(tasks).stream().filter(Boolean::booleanValue).count();
+		long succeeded = Concurrently.run(tasks).stream().filter(Boolean::booleanValue).count();
 
 		assertThat(succeeded).isPositive();
 		assertThat(wallet().getBalance()).isEqualByComparingTo(new BigDecimal("10.00").multiply(BigDecimal.valueOf(succeeded)));
@@ -192,7 +189,7 @@ class TopUpTests {
 				.transferId());
 		}
 
-		List<UUID> transferIds = runAtTheSameTime(tasks);
+		List<UUID> transferIds = Concurrently.run(tasks);
 
 		assertThat(transferIds).containsOnly(transferIds.getFirst());
 		assertThat(wallet().getBalance()).isEqualByComparingTo("25.00");
@@ -202,7 +199,7 @@ class TopUpTests {
 
 	private ResultActions topUp(String idempotencyKey, String amount) throws Exception {
 		return mockMvc.perform(post("/api/wallets/me/top-ups").header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
-			.header(TopUpController.IDEMPOTENCY_KEY, idempotencyKey)
+			.header(IdempotencyHeaders.KEY, idempotencyKey)
 			.contentType(MediaType.APPLICATION_JSON)
 			.content("{\"amount\": " + amount + "}"));
 	}
@@ -215,26 +212,6 @@ class TopUpTests {
 		Wallet wallet = wallet();
 		assertThat(ledger.sumForWallet(wallet.getId())).isEqualByComparingTo(wallet.getBalance());
 		assertThat(ledger.sumOfAllEntries()).isEqualByComparingTo("0");
-	}
-
-	/** Starts every task at the same moment, so they really race each other. */
-	private static <T> List<T> runAtTheSameTime(List<Callable<T>> tasks) throws Exception {
-		CountDownLatch start = new CountDownLatch(1);
-		try (ExecutorService pool = Executors.newFixedThreadPool(tasks.size())) {
-			List<Future<T>> futures = new ArrayList<>();
-			for (Callable<T> task : tasks) {
-				futures.add(pool.submit(() -> {
-					start.await();
-					return task.call();
-				}));
-			}
-			start.countDown();
-			List<T> results = new ArrayList<>();
-			for (Future<T> future : futures) {
-				results.add(future.get());
-			}
-			return results;
-		}
 	}
 
 }

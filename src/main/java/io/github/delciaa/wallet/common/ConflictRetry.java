@@ -5,6 +5,7 @@ import java.util.function.Supplier;
 
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.OptimisticLockingFailureException;
+import org.springframework.dao.PessimisticLockingFailureException;
 import org.springframework.stereotype.Component;
 
 /**
@@ -14,9 +15,10 @@ import org.springframework.stereotype.Component;
  * reused, so this class must not itself be inside one; each attempt is a fresh start
  * that sees what the winning request committed.
  *
- * <p>Two kinds of conflict are retried: another request changed the same wallet first
- * (the @Version check), or another request with the same Idempotency-Key committed first
- * (the UNIQUE constraint), in which case the next attempt finds it and replays it.
+ * <p>Three kinds of conflict are retried: another request changed the same wallet first
+ * (the @Version check); another request with the same Idempotency-Key committed first
+ * (the UNIQUE constraint), in which case the next attempt finds it and replays it; or
+ * the database broke a deadlock by cancelling this request.
  */
 @Component
 public class ConflictRetry {
@@ -28,7 +30,8 @@ public class ConflictRetry {
 			try {
 				return action.get();
 			}
-			catch (OptimisticLockingFailureException | DataIntegrityViolationException ex) {
+			catch (OptimisticLockingFailureException | PessimisticLockingFailureException
+					| DataIntegrityViolationException ex) {
 				if (attempt == MAX_ATTEMPTS) {
 					throw new ConcurrentUpdateException(ex);
 				}

@@ -88,6 +88,14 @@ public class Transfer {
 		return new Transfer(TransferType.TOP_UP, request, externalWalletId, to, amount);
 	}
 
+	/** Money sent from one user's wallet to another's. */
+	static Transfer peerToPeer(IdempotentRequest request, Wallet from, Wallet to, BigDecimal amount) {
+		if (!from.getCurrency().equals(to.getCurrency())) {
+			throw new IllegalArgumentException("Both wallets must use the same currency");
+		}
+		return new Transfer(TransferType.P2P, request, from.getId(), to, amount);
+	}
+
 	public boolean isSameRequestAs(IdempotentRequest request) {
 		return requestHash.equals(request.fingerprint());
 	}

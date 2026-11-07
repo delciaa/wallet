@@ -12,6 +12,11 @@ spring:
     hibernate:
       ddl-auto: validate
     open-in-view: false
+    properties:
+      hibernate:
+        # Update rows in ID order, so two transfers between the same pair of
+        # wallets lock them in the same order and can't deadlock each other
+        order_updates: true
   mvc:
     problemdetails:
       enabled: true

@@ -5,7 +5,6 @@ import java.util.UUID;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
@@ -19,25 +18,17 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/wallets/me/top-ups")
 public class TopUpController {
 
-	static final String IDEMPOTENCY_KEY = "Idempotency-Key";
-
-	static final String REPLAYED = "Idempotent-Replayed";
-
 	private final TopUpService topUpService;
 
 	public TopUpController(TopUpService topUpService) {
 		this.topUpService = topUpService;
 	}
 
-	/** 201 for a new top-up; 200 with the original result when the same request is sent again. */
 	@PostMapping
 	public ResponseEntity<TransferResponse> topUp(@AuthenticationPrincipal Jwt jwt,
-			@RequestHeader(IDEMPOTENCY_KEY) @NotBlank @Size(max = 100) String idempotencyKey,
+			@RequestHeader(IdempotencyHeaders.KEY) @NotBlank @Size(max = 100) String idempotencyKey,
 			@Valid @RequestBody TopUpRequest request) {
-		TransferResult result = topUpService.topUp(UUID.fromString(jwt.getSubject()), idempotencyKey, request);
-		return ResponseEntity.status(result.replayed() ? HttpStatus.OK : HttpStatus.CREATED)
-			.header(REPLAYED, String.valueOf(result.replayed()))
-			.body(result.transfer());
+		return topUpService.topUp(UUID.fromString(jwt.getSubject()), idempotencyKey, request).toResponseEntity();
 	}
 
 }
