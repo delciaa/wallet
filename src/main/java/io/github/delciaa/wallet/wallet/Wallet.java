@@ -95,6 +95,30 @@ public class Wallet {
 		balance = balance.subtract(amount);
 	}
 
+	public boolean isFrozen() {
+		return status == WalletStatus.FROZEN;
+	}
+
+	/**
+	 * Blocks all money in and out. Freezing bumps the @Version, so a transfer already in
+	 * progress on this wallet loses its race, is retried, and then sees the freeze.
+	 */
+	public void freeze() {
+		requireUserWallet();
+		status = WalletStatus.FROZEN;
+	}
+
+	public void unfreeze() {
+		requireUserWallet();
+		status = WalletStatus.ACTIVE;
+	}
+
+	private void requireUserWallet() {
+		if (type != WalletType.USER) {
+			throw new SystemWalletException();
+		}
+	}
+
 	private static void requirePositive(BigDecimal amount) {
 		if (amount.signum() <= 0) {
 			throw new IllegalArgumentException("Amount must be positive");

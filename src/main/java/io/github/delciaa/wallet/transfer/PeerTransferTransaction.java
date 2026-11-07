@@ -47,6 +47,10 @@ class PeerTransferTransaction {
 		}
 		Wallet from = wallets.findByUserId(request.userId()).orElseThrow(WalletNotFoundException::new);
 		Wallet to = wallets.findByUserId(recipient.getId()).orElseThrow(RecipientNotFoundException::new);
+		if (to.isFrozen()) {
+			// Checked here so the sender gets a clear message instead of "Wallet is frozen"
+			throw new RecipientUnavailableException();
+		}
 
 		from.debit(send.amount());
 		to.credit(send.amount());

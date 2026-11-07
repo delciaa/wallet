@@ -26,3 +26,7 @@ app:
     secret: ${JWT_SECRET:}
     ttl: 15m
     issuer: wallet
+
+  admin:
+    # The account to make admin at startup. It must sign up first.
+    email: ${ADMIN_EMAIL:}

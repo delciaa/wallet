@@ -47,6 +47,15 @@ public class User {
 		return email.trim().toLowerCase(Locale.ROOT);
 	}
 
+	/** Takes effect at the user's next login, because existing tokens carry the old role. */
+	public void promoteToAdmin() {
+		role = Role.ADMIN;
+	}
+
+	public boolean isAdmin() {
+		return role == Role.ADMIN;
+	}
+
 	public UUID getId() {
 		return id;
 	}
