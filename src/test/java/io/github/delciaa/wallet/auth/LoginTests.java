@@ -142,6 +142,44 @@ class LoginTests {
 			.andExpect(status().isForbidden());
 	}
 
+	@Test
+	void loginStillWorksWhenAStaleTokenIsSentAlong() throws Exception {
+		String email = registeredUser();
+
+		mockMvc
+			.perform(post("/api/auth/login").header(HttpHeaders.AUTHORIZATION, "Bearer " + expiredTokenFor(email))
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(json(email, PASSWORD)))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.accessToken").isNotEmpty());
+	}
+
+	@Test
+	void registerStillWorksWhenAGarbageTokenIsSentAlong() throws Exception {
+		mockMvc
+			.perform(post("/api/auth/register").header(HttpHeaders.AUTHORIZATION, "Bearer not-a-real-token")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(json(uniqueEmail(), PASSWORD)))
+			.andExpect(status().isCreated());
+	}
+
+	@Test
+	void staleTokenIsStillRejectedOutsideTheAuthPaths() throws Exception {
+		String email = registeredUser();
+
+		mockMvc.perform(get("/api/me").header(HttpHeaders.AUTHORIZATION, "Bearer " + expiredTokenFor(email)))
+			.andExpect(status().isUnauthorized());
+	}
+
+	private String expiredTokenFor(String email) {
+		UUID userId = users.findByEmail(email).orElseThrow().getId();
+		Instant past = Instant.now().minusSeconds(3600);
+		return jwtEncoder
+			.encode(JwtEncoderParameters.from(JwsHeader.with(MacAlgorithm.HS256).build(),
+					claims(userId).issuedAt(past.minusSeconds(900)).expiresAt(past).build()))
+			.getTokenValue();
+	}
+
 	private JwtClaimsSet.Builder claims(UUID userId) {
 		return JwtClaimsSet.builder().issuer("wallet").subject(userId.toString()).claim("role", "USER");
 	}
