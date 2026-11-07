@@ -1,6 +1,7 @@
 package io.github.delciaa.wallet.user;
 
 import java.time.Instant;
+import java.util.Locale;
 import java.util.UUID;
 
 import jakarta.persistence.Column;
@@ -37,8 +38,13 @@ public class User {
 	}
 
 	public User(String email, String passwordHash) {
-		this.email = email;
+		this.email = normalizeEmail(email);
 		this.passwordHash = passwordHash;
+	}
+
+	/** Emails are stored and looked up trimmed and lower-case, so case never matters. */
+	public static String normalizeEmail(String email) {
+		return email.trim().toLowerCase(Locale.ROOT);
 	}
 
 	public UUID getId() {

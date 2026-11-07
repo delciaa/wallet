@@ -1,0 +1,5 @@
+# Test-only settings. Files in classpath:config/ are loaded on top of the main
+# application.yml, so this adds to it rather than replacing it.
+app:
+  jwt:
+    secret: test-only-secret-not-used-anywhere-else-0123456789
