@@ -75,4 +75,19 @@ public class Wallet {
 		return status;
 	}
 
+	/** Adds money. The @Version check at commit makes a concurrent change fail instead of being lost. */
+	public void credit(BigDecimal amount) {
+		requireActive();
+		if (amount.signum() <= 0) {
+			throw new IllegalArgumentException("Credit amount must be positive");
+		}
+		balance = balance.add(amount);
+	}
+
+	private void requireActive() {
+		if (status == WalletStatus.FROZEN) {
+			throw new WalletFrozenException();
+		}
+	}
+
 }
