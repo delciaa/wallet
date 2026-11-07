@@ -12,8 +12,10 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Makes the account named in {@code ADMIN_EMAIL} an admin when the app starts. The
- * account signs up normally first, so there is no default admin password to leak and no
+ * Makes the account named in {@code ADMIN_EMAIL} an admin when the app starts.
+ * The
+ * account signs up normally first, so there is no default admin password to
+ * leak and no
  * public way to become admin.
  */
 @Component
